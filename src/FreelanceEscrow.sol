@@ -2,7 +2,6 @@
 pragma solidity ^0.8.24;
 
 contract FreelanceEscrow {
-
     // ENUM: the job's mood label
     enum Status {
         Created,
@@ -83,20 +82,16 @@ contract FreelanceEscrow {
     }
 
     // CREATE JOB
-    function createJob(
-        address freelancer,
-        address arbiter,
-        string calldata description
-    ) external payable returns (uint256 jobId) {
+    function createJob(address freelancer, address arbiter, string calldata description)
+        external
+        payable
+        returns (uint256 jobId)
+    {
         if (msg.value == 0) revert ZeroPayment();
         if (freelancer == address(0) || arbiter == address(0)) {
             revert InvalidAddress();
         }
-        if (
-            freelancer == msg.sender ||
-            arbiter == msg.sender ||
-            arbiter == freelancer
-        ) {
+        if (freelancer == msg.sender || arbiter == msg.sender || arbiter == freelancer) {
             revert InvalidAddress();
         }
 
@@ -180,7 +175,7 @@ contract FreelanceEscrow {
 
     // PAYMENT HELPER: the one place money leaves
     function _pay(address to, uint256 amount) private {
-        (bool ok, ) = to.call{value: amount}("");
+        (bool ok,) = to.call{value: amount}("");
         if (!ok) revert TransferFailed();
     }
 }

@@ -20,11 +20,7 @@ contract FreelanceEscrowTest is Test {
 
     function _createJob() internal returns (uint256) {
         vm.prank(client);
-        return escrow.createJob{value: PAY}(
-            freelancer,
-            arbiter,
-            "Design a logo"
-        );
+        return escrow.createJob{value: PAY}(freelancer, arbiter, "Design a logo");
     }
 
     function test_CreateJobLocksPayment() public {
@@ -34,14 +30,7 @@ contract FreelanceEscrowTest is Test {
         assertEq(escrow.jobCount(), 1);
         assertEq(address(escrow).balance, PAY);
 
-        (
-            address c,
-            address f,
-            address a,
-            uint256 amt,
-            string memory d,
-            FreelanceEscrow.Status st
-        ) = escrow.jobs(id);
+        (address c, address f, address a, uint256 amt, string memory d, FreelanceEscrow.Status st) = escrow.jobs(id);
 
         assertEq(c, client);
         assertEq(f, freelancer);
@@ -176,11 +165,7 @@ contract FreelanceEscrowTest is Test {
         ReentrancyAttacker attacker = new ReentrancyAttacker(escrow);
 
         vm.prank(client);
-        uint256 id = escrow.createJob{value: PAY}(
-            address(attacker),
-            arbiter,
-            "Attack"
-        );
+        uint256 id = escrow.createJob{value: PAY}(address(attacker), arbiter, "Attack");
 
         attacker.setTarget(id);
         attacker.deliver();
@@ -190,10 +175,7 @@ contract FreelanceEscrowTest is Test {
 
         assertTrue(attacker.reentryAttempted());
         assertFalse(attacker.reentrySucceeded());
-        assertEq(
-            bytes4(attacker.reentryError()),
-            FreelanceEscrow.Reentrancy.selector
-        );
+        assertEq(bytes4(attacker.reentryError()), FreelanceEscrow.Reentrancy.selector);
         assertEq(address(attacker).balance, PAY);
         assertEq(address(escrow).balance, 0);
     }
@@ -221,9 +203,7 @@ contract ReentrancyAttacker {
 
     receive() external payable {
         reentryAttempted = true;
-        (bool ok, bytes memory data) = address(escrow).call(
-            abi.encodeCall(FreelanceEscrow.approveJob, (targetId))
-        );
+        (bool ok, bytes memory data) = address(escrow).call(abi.encodeCall(FreelanceEscrow.approveJob, (targetId)));
         reentrySucceeded = ok;
         reentryError = data;
     }
