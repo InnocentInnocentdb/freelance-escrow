@@ -2,14 +2,13 @@
 pragma solidity ^0.8.24;
 
 contract FreelanceEscrow {
-    // ENUM: the job's mood label
+    // ENUM: the job's status (applies to the current milestone)
     enum Status {
         Created,
         Delivered,
         Approved,
         Disputed,
-        Resolved,
-        Cancelled
+        Resolved
     }
 
     // STRUCT: the job's info card
@@ -17,12 +16,16 @@ contract FreelanceEscrow {
         address client;
         address freelancer;
         address arbiter;
-        uint256 amount;
         string description;
+        uint256 totalAmount;
+        uint256 paidAmount;
+        uint256[] milestoneAmounts;
+        uint256 currentMilestone;
         Status status;
     }
 
     // STORAGE
+    uint256 public constant MAX_MILESTONES = 20;
     uint256 public jobCount;
     mapping(uint256 => Job) public jobs;
     bool private _locked;
@@ -33,21 +36,37 @@ contract FreelanceEscrow {
     error NotArbiter();
     error NotParty();
     error InvalidStatus();
-    error ZeroPayment();
     error InvalidAddress();
-    error TransferFailed();
+    error ZeroPayment();
+    error NoMilestones();
+    error TooManyMilestones();
+    error ZeroMilestoneAmount();
+    error AmountMismatch();
     error JobNotFound();
+    error TransferFailed();
     error Reentrancy();
 
     // EVENTS
-    event JobCreated(uint256 indexed jobId, address indexed client, address indexed freelancer, uint256 amount);
-    event JobDelivered(uint256 indexed jobId);
-    event JobApproved(uint256 indexed jobId);
-    event JobDisputed(uint256 indexed jobId, address indexed raisedBy);
-    event JobResolved(uint256 indexed jobId, address indexed winner);
-    event JobCancelled(uint256 indexed jobId);
+    event JobCreated(
+        uint256 indexed jobId,
+        address indexed client,
+        address indexed freelancer,
+        uint256 totalAmount,
+        uint256 milestoneCount
+    );
+    event JobDelivered(uint256 indexed jobId, uint256 milestone);
+    event JobApproved(uint256 indexed jobId, uint256 milestone, uint256 amount);
+    event JobDisputed(uint256 indexed jobId, uint256 milestone, address indexed raisedBy);
+    event JobResolved(uint256 indexed jobId, uint256 milestone, address indexed winner, uint256 amount);
 
     // MODIFIERS: the bouncers
+    modifier nonReentrant() {
+        if (_locked) revert Reentrancy();
+        _locked = true;
+        _;
+        _locked = false;
+    }
+
     modifier jobExists(uint256 jobId) {
         if (jobId == 0 || jobId > jobCount) revert JobNotFound();
         _;
@@ -73,21 +92,14 @@ contract FreelanceEscrow {
         _;
     }
 
-    // REENTRANCY LOCK: one at a time
-    modifier nonReentrant() {
-        if (_locked) revert Reentrancy();
-        _locked = true;
-        _;
-        _locked = false;
-    }
-
     // CREATE JOB
-    function createJob(address freelancer, address arbiter, string calldata description)
+    function createJob(address freelancer, address arbiter, string calldata description, uint256[] calldata amounts)
         external
         payable
         returns (uint256 jobId)
     {
         if (msg.value == 0) revert ZeroPayment();
+
         if (freelancer == address(0) || arbiter == address(0)) {
             revert InvalidAddress();
         }
@@ -95,18 +107,29 @@ contract FreelanceEscrow {
             revert InvalidAddress();
         }
 
+        uint256 count = amounts.length;
+        if (count == 0) revert NoMilestones();
+        if (count > MAX_MILESTONES) revert TooManyMilestones();
+
+        uint256 sum;
+        for (uint256 i = 0; i < count; i++) {
+            if (amounts[i] == 0) revert ZeroMilestoneAmount();
+            sum += amounts[i];
+        }
+        if (sum != msg.value) revert AmountMismatch();
+
         jobId = ++jobCount;
 
-        jobs[jobId] = Job({
-            client: msg.sender,
-            freelancer: freelancer,
-            arbiter: arbiter,
-            amount: msg.value,
-            description: description,
-            status: Status.Created
-        });
+        Job storage job = jobs[jobId];
+        job.client = msg.sender;
+        job.freelancer = freelancer;
+        job.arbiter = arbiter;
+        job.description = description;
+        job.totalAmount = msg.value;
+        job.milestoneAmounts = amounts;
+        job.status = Status.Created;
 
-        emit JobCreated(jobId, msg.sender, freelancer, msg.value);
+        emit JobCreated(jobId, msg.sender, freelancer, msg.value, count);
     }
 
     // DELIVER
@@ -116,12 +139,14 @@ contract FreelanceEscrow {
         onlyFreelancer(jobId)
         inStatus(jobId, Status.Created)
     {
-        jobs[jobId].status = Status.Delivered;
+        Job storage job = jobs[jobId];
 
-        emit JobDelivered(jobId);
+        job.status = Status.Delivered;
+
+        emit JobDelivered(jobId, job.currentMilestone);
     }
 
-    // APPROVE AND PAY
+    // APPROVE AND PAY THE CURRENT MILESTONE
     function approveJob(uint256 jobId)
         external
         nonReentrant
@@ -131,11 +156,21 @@ contract FreelanceEscrow {
     {
         Job storage job = jobs[jobId];
 
-        job.status = Status.Approved;
+        uint256 milestone = job.currentMilestone;
+        uint256 amount = job.milestoneAmounts[milestone];
 
-        emit JobApproved(jobId);
+        job.paidAmount += amount;
 
-        _pay(job.freelancer, job.amount);
+        if (milestone + 1 == job.milestoneAmounts.length) {
+            job.status = Status.Approved;
+        } else {
+            job.currentMilestone = milestone + 1;
+            job.status = Status.Created;
+        }
+
+        emit JobApproved(jobId, milestone, amount);
+
+        _pay(job.freelancer, amount);
     }
 
     // RAISE DISPUTE
@@ -151,10 +186,10 @@ contract FreelanceEscrow {
 
         job.status = Status.Disputed;
 
-        emit JobDisputed(jobId, msg.sender);
+        emit JobDisputed(jobId, job.currentMilestone, msg.sender);
     }
 
-    // ARBITER DECIDES
+    // ARBITER DECIDES THE CURRENT MILESTONE
     function resolveDispute(uint256 jobId, bool payFreelancer)
         external
         nonReentrant
@@ -164,13 +199,35 @@ contract FreelanceEscrow {
     {
         Job storage job = jobs[jobId];
 
-        job.status = Status.Resolved;
+        uint256 milestone = job.currentMilestone;
+        address winner;
+        uint256 amount;
 
-        address winner = payFreelancer ? job.freelancer : job.client;
+        if (payFreelancer) {
+            winner = job.freelancer;
+            amount = job.milestoneAmounts[milestone];
+            job.paidAmount += amount;
 
-        emit JobResolved(jobId, winner);
+            if (milestone + 1 == job.milestoneAmounts.length) {
+                job.status = Status.Resolved;
+            } else {
+                job.currentMilestone = milestone + 1;
+                job.status = Status.Created;
+            }
+        } else {
+            winner = job.client;
+            amount = job.totalAmount - job.paidAmount;
+            job.status = Status.Resolved;
+        }
 
-        _pay(winner, job.amount);
+        emit JobResolved(jobId, milestone, winner, amount);
+
+        _pay(winner, amount);
+    }
+
+    // READ-ONLY: show a job's payment slices
+    function getMilestones(uint256 jobId) external view jobExists(jobId) returns (uint256[] memory) {
+        return jobs[jobId].milestoneAmounts;
     }
 
     // PAYMENT HELPER: the one place money leaves
