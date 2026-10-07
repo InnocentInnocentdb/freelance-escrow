@@ -50,6 +50,19 @@ Example: a 1 ETH brand package split as `[0.3, 0.3, 0.4]`. The client locks 1 ET
 - If the arbiter sides with the **freelancer**, the current step is paid. If more steps remain, the job continues with the next one. If it was the last step, the job is closed.
 - If the arbiter sides with the **client**, everything not yet paid goes back to the client, and the job is closed. Steps already paid stay with the freelancer.
 
+## Choosing a payment mode
+
+One contract handles both. The mode is set when the job is created, by the list of amounts the client passes to `createJob`. The client and the freelancer agree on it beforehand.
+
+| Mode | Amounts list | ETH sent | How it pays |
+|---|---|---|---|
+| Lump sum | `[1 ETH]` | 1 ETH | One step, paid in full when the client approves |
+| Milestones | `[0.3 ETH, 0.3 ETH, 0.4 ETH]` | 1 ETH | Three steps, paid one at a time, in order |
+
+The amounts must add up exactly to the ETH sent, and on-chain they are written in wei (1 ETH = 10^18 wei). Once a job is created, its mode cannot be changed.
+
+The client sets the amounts and the arbiter when creating the job, and the freelancer's agreement happens off-chain. Before starting work, the freelancer should check the job on-chain (`jobs(jobId)` and `getMilestones(jobId)`) to confirm that the steps and the arbiter match what was agreed.
+
 ## Job status
 
 The status belongs to the job and always describes the step currently in progress.

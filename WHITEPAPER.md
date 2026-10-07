@@ -144,6 +144,7 @@ Steps are paid in order, one at a time.
 - Either the client or the freelancer can freeze an open job by raising a dispute.
 - Addresses that cannot receive ETH can block their own payments. A freelancer address that rejects ETH stops `approveJob` from succeeding. A client address that rejects ETH stops a refund.
 - The contract has no function for receiving plain ETH. ETH can still be force-sent to it by other means, such as a self-destructing contract. Such ETH is not tied to any job and cannot be recovered.
+- Job terms are set by the client at creation, including the payment steps and the arbiter. The freelancer's agreement happens off-chain, so a freelancer should confirm a job's steps and arbiter on-chain (`jobs(jobId)` and `getMilestones(jobId)`) before starting work.
 
 **Static analysis notes.** Foundry's linter reports four warnings, each reviewed and accepted:
 
