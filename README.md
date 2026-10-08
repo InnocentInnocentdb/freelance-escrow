@@ -1,10 +1,14 @@
 # Freelance Escrow
 
+[![CI](https://github.com/InnocentInnocentdb/freelance-escrow/actions/workflows/test.yml/badge.svg)](https://github.com/InnocentInnocentdb/freelance-escrow/actions/workflows/test.yml)
+
 A smart contract where a client locks payment upfront, a freelancer delivers the work, and funds are released **only when the client approves**. If the two disagree, a neutral third address, the **arbiter**, decides the outcome. Payment can be split into **milestones**, so the freelancer is paid step by step instead of in one lump sum.
 
 Built with Solidity and Foundry for the Option 8 brief (Freelance Escrow).
 
 For design details, security analysis, and a guide for developers who fork or extend this project, read [WHITEPAPER.md](WHITEPAPER.md).
+
+**Quick links:** [Whitepaper](WHITEPAPER.md) · [Verified contract](https://sepolia.etherscan.io/address/0xfE7E2b649B4D76bea09F9F7990A3C7FE43A5Aee3#code) · [Deployment transaction](https://sepolia.etherscan.io/tx/0x4990ad72a349a023185c49dac8269838da010b9e3d8ad61eee822881cf35846a) · [Release v1.0.0](https://github.com/InnocentInnocentdb/freelance-escrow/releases/tag/v1.0.0)
 
 ## Official deployment
 
