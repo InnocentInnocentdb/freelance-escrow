@@ -182,7 +182,7 @@ Run them with `forge test`.
 
 Both deployments listed here came from the same test-only wallet, `0x9FB65352149D91D9D70669F1E004787e9739b87B`.
 
-**Deployment history.** An earlier prototype of the core escrow, without milestones, was deployed at `0x9cdCEd629204154071A33a2388B880f2Bab62b1a`. It is superseded and should not be used. The Git tag `v1-core` marks that code.
+**Deployment history.** An earlier prototype of the core escrow, without milestones, was deployed at `0x9cdCEd629204154071A33a2388B880f2Bab62b1a`. It is superseded. It works as a lump-sum escrow and is kept as a record of the build; the official contract above is the one to use. The Git tag `v1-core` marks that code.
 
 **Lessons learned.** The prototype was deployed before the stretch goal was built. Milestones change the shape of a job from one payment into a list of payments, so adding them meant rewriting the core and deploying again at a new address. Contracts cannot be edited after deployment, so the prototype remains on-chain. The lesson: any feature that changes the structure of the core must be designed in before deployment, and deployment comes last. The final build followed that rule: roadmap approved first, milestones built in from the first line, the full test suite passing and a rehearsal run before the single deployment.
 

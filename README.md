@@ -25,7 +25,7 @@ This is the one official deployment. Everything in this repository describes thi
 
 ## Deployment history
 
-An earlier prototype of the core escrow, without milestone support, was deployed on Sepolia at `0x9cdCEd629204154071A33a2388B880f2Bab62b1a`. It was **superseded by the contract above. It is not the final version and should not be used.** Blockchains cannot delete contracts, so it remains visible on-chain. The Git tag `v1-core` marks that earlier code.
+An earlier prototype of the core escrow, without milestone support, was deployed on Sepolia at `0x9cdCEd629204154071A33a2388B880f2Bab62b1a`. It was **superseded by the contract above. It is not the final version.** It works as a lump-sum escrow and is kept as a record of the build; the official contract above is the one to use. Blockchains cannot delete contracts, so it remains visible on-chain. The Git tag `v1-core` marks that earlier code.
 
 ## How it works
 
